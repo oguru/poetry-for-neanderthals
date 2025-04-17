@@ -17,6 +17,8 @@ function App() {
   const [currentRound, setCurrentRound] = useState(1)
   const [totalRounds, setTotalRounds] = useState(5)
   const [timeLeft, setTimeLeft] = useState(60)
+  const [timerDuration, setTimerDuration] = useState(60) // Default 60 seconds
+  const [timerInputValue, setTimerInputValue] = useState('60') // String value for the input
   const [timerActive, setTimerActive] = useState(false)
   const [gameCards, setGameCards] = useState([...gameData])
   const [currentCard, setCurrentCard] = useState(null)
@@ -34,6 +36,21 @@ function App() {
     setTotalRounds(Math.max(1, parseInt(newRounds) || 1))
   }
 
+  // Handle timer duration input change
+  const handleTimerInputChange = (value) => {
+    // Allow the user to type freely, just store the raw input
+    setTimerInputValue(value)
+    
+    // Only update the actual timer duration if it's a valid number
+    if (!isNaN(value) && value.trim() !== '') {
+      const duration = parseInt(value)
+      // Only apply limits when actually starting the game
+      if (duration > 0) {
+        setTimerDuration(duration)
+      }
+    }
+  }
+
   // Force end the current turn (for dev mode)
   const forceEndTurn = () => {
     setTimeLeft(0);
@@ -41,6 +58,13 @@ function App() {
 
   // Start the game
   const startGame = () => {
+    // Final validation of timer duration before starting
+    let finalDuration = parseInt(timerInputValue) || 60
+    
+    // Apply min/max only when starting the game
+    finalDuration = Math.min(Math.max(10, finalDuration), 300)
+    setTimerDuration(finalDuration)
+    
     setGameState('playing')
     setCurrentTeam(0)
     setCurrentRound(1)
@@ -52,7 +76,7 @@ function App() {
 
   // Start a team's turn
   const startTurn = () => {
-    setTimeLeft(60)
+    setTimeLeft(timerDuration) // Use the custom timer duration
     setTimerActive(true)
     drawCard()
   }
@@ -149,6 +173,13 @@ function App() {
     return () => clearTimeout(timer)
   }, [timerActive, timeLeft])
 
+  // Format time as mm:ss
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  }
+
   return (
     <div className="app-container">
       {gameState === 'setup' && (
@@ -169,8 +200,8 @@ function App() {
             ))}
           </div>
           
-          <div className="rounds-setup">
-            <h2>Game Rounds</h2>
+          <div className="game-settings">
+            <h2>Game Settings</h2>
             <div className="rounds-input">
               <label>Number of Rounds:</label>
               <input
@@ -180,9 +211,30 @@ function App() {
                 onChange={(e) => handleRoundsChange(e.target.value)}
               />
             </div>
+            
+            <div className="timer-input">
+              <label>Timer Duration (seconds):</label>
+              <input
+                type="text"
+                value={timerInputValue}
+                onChange={(e) => handleTimerInputChange(e.target.value)}
+                placeholder="Enter seconds (10-300)"
+              />
+            </div>
+            
+            <div className="timer-preview">
+              {!isNaN(timerInputValue) && timerInputValue.trim() !== '' && parseInt(timerInputValue) > 0
+                ? `Round timer will be: ${formatTime(parseInt(timerInputValue))}`
+                : "Please enter a valid time in seconds"
+              }
+            </div>
           </div>
           
-          <button className="start-button" onClick={startGame}>
+          <button 
+            className="start-button" 
+            onClick={startGame}
+            disabled={isNaN(timerInputValue) || timerInputValue.trim() === '' || parseInt(timerInputValue) <= 0}
+          >
             Start Game
           </button>
         </div>
@@ -203,7 +255,9 @@ function App() {
             </div>
             
             <div className="game-status">
-              <div className={`timer ${timeLeft <= 10 ? 'warning' : ''}`}>Time: {timeLeft}s</div>
+              <div className={`timer ${timeLeft <= 10 ? 'warning' : ''}`}>
+                Time: {formatTime(timeLeft)}
+              </div>
               <div className="round-info">Round: {currentRound}/{totalRounds}</div>
               <div className="cards-info">Cards: {gameCards.length}/{gameData.length}</div>
             </div>

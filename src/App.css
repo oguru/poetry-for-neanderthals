@@ -76,13 +76,25 @@ button:active {
   transform: translateY(1px);
 }
 
+button:disabled {
+  background-color: #cccccc;
+  color: #666666;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+button:disabled:hover {
+  background-color: #cccccc;
+  transform: none;
+}
+
 /* Setup Screen */
 .setup-screen {
   width: 100%;
   animation: fadeIn 0.5s ease-in-out;
 }
 
-.team-setup, .rounds-setup {
+.team-setup, .game-settings {
   width: 100%;
   margin-bottom: 1.5rem;
   padding: 1rem;
@@ -92,17 +104,28 @@ button:active {
   box-sizing: border-box;
 }
 
-.team-input, .rounds-input {
+.team-input, .rounds-input, .timer-input {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   margin-bottom: 1rem;
 }
 
-.team-input label, .rounds-input label {
+.team-input label, .rounds-input label, .timer-input label {
   margin-bottom: 0.5rem;
   width: 100%;
   text-align: left;
+}
+
+.timer-preview {
+  background-color: rgba(255, 255, 255, 0.3);
+  padding: 0.6rem;
+  border-radius: 4px;
+  margin-top: 0.5rem;
+  font-weight: bold;
+  color: var(--text-dark);
+  text-align: center;
+  width: 100%;
 }
 
 input {
@@ -121,6 +144,17 @@ input:focus {
   border-color: var(--primary-color);
   outline: none;
   box-shadow: 0 0 0 2px rgba(100, 108, 255, 0.2);
+}
+
+/* Remove browser arrows from number inputs */
+input[type="number"]::-webkit-inner-spin-button, 
+input[type="number"]::-webkit-outer-spin-button { 
+  -webkit-appearance: none; 
+  margin: 0; 
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
 }
 
 .start-button {
@@ -468,19 +502,24 @@ input:focus {
     padding: 0.8rem 1.5rem;
   }
   
-  .team-input, .rounds-input {
+  .team-input, .rounds-input, .timer-input {
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
   }
   
-  .team-input label, .rounds-input label {
+  .team-input label, .rounds-input label, .timer-input label {
     width: auto;
     margin-bottom: 0;
   }
   
   input {
     width: 60%;
+  }
+  
+  .timer-preview {
+    width: 50%;
+    margin: 1rem auto;
   }
   
   .game-header {
