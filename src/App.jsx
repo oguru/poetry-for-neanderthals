@@ -205,7 +205,7 @@ function App() {
     let finalDuration = parseInt(timerInputValue) || 60
     
     // Apply min/max only when starting the game
-    finalDuration = Math.min(Math.max(10, finalDuration), 300)
+    finalDuration = Math.min(Math.max(1, finalDuration), 300)
     setTimerDuration(finalDuration)
     localStorage.setItem('timerDuration', finalDuration.toString())
     
@@ -226,12 +226,12 @@ function App() {
     
     // Shuffle the game cards at the start
     setGameCards([...gameData].sort(() => Math.random() - 0.5))
-    startTurn()
+    startTurn(finalDuration) // use the newly validated duration for the first turn
   }
 
   // Start a team's turn
-  const startTurn = () => {
-    setTimeLeft(timerDuration) // Use the custom timer duration
+  const startTurn = (duration = timerDuration) => {
+    setTimeLeft(duration) // Use the provided or current timer duration
     setTimerActive(true)
     drawCard()
   }
