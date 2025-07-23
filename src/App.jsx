@@ -302,26 +302,56 @@ function App() {
     setGameState('roundEnd')
   }
 
-  // Start next team's turn
-  const nextTeamTurn = () => {
-    const nextTeam = (currentTeam + 1) % 2
-    setCurrentTeam(nextTeam)
-    
-    // Check if we've completed a round (all players have taken their turn)
+  // Determine if the game should end
+  const shouldGameEnd = () => {
+    return false; // Let nextTeamTurn handle the end game logic
+  }
+
+  // Check if this is the final turn
+  const isFinalTurn = () => {
     const totalPlayers = getTotalPlayers();
+    const updatedPlayersTaken = totalPlayersTaken + 1;
     
-    if (totalPlayersTaken + 1 >= totalPlayers) { // +1 because we're about to start the next turn
-      const newRound = currentRound + 1
-      if (newRound > totalRounds) {
-        setGameState('gameEnd')
-        return
-      }
-      setCurrentRound(newRound)
-      setTotalPlayersTaken(0)
+    // We're in the final round
+    if (currentRound === totalRounds) {
+      // Check if this was the last player's turn
+      return updatedPlayersTaken >= totalPlayers;
     }
-    
-    setGameState('playing')
-    startTurn()
+    return false;
+  }
+
+  // Determine if the game should end after the current round is complete
+  const isGameOverAfterRound = () => {
+    const totalPlayers = getTotalPlayers();
+    // Game is over if we are in the final round and every player has already taken their turn in that round
+    return currentRound === totalRounds && totalPlayersTaken >= totalPlayers;
+  }
+
+  // Start next team's turn (called from the Round End screen)
+  const nextTeamTurn = () => {
+    const totalPlayers = getTotalPlayers();
+
+    // If the current round is the last one and everyone has played -> end game
+    if (currentRound === totalRounds && totalPlayersTaken >= totalPlayers) {
+      setGameState('gameEnd');
+      return;
+    }
+
+    // Determine if we've completed the round (all players have played)
+    const roundComplete = totalPlayersTaken >= totalPlayers;
+
+    // If the round is complete, advance to the next round and reset the per-round player counter
+    if (roundComplete) {
+      setCurrentRound(currentRound + 1);
+      setTotalPlayersTaken(0);
+    }
+
+    // Rotate to the next team for the upcoming turn
+    setCurrentTeam((currentTeam + 1) % 2);
+
+    // Resume the game
+    setGameState('playing');
+    startTurn();
   }
 
   // Reset the game
@@ -571,8 +601,11 @@ function App() {
             <p>Next up: {teams[(currentTeam + 1) % 2].name} - {getPlayerName((currentTeam + 1) % 2, teams[(currentTeam + 1) % 2].currentPlayer - 1)}</p>
           </div>
           
-          <button className="next-turn-button" onClick={nextTeamTurn}>
-            {totalPlayersTaken + 1 >= getTotalPlayers() && currentRound === totalRounds 
+          <button 
+            className="next-turn-button" 
+            onClick={nextTeamTurn}
+          >
+            {isGameOverAfterRound() 
               ? "See Final Results" 
               : `Start ${teams[(currentTeam + 1) % 2].name} - ${getPlayerName((currentTeam + 1) % 2, teams[(currentTeam + 1) % 2].currentPlayer - 1)}'s Turn`}
           </button>
@@ -607,10 +640,16 @@ function App() {
       )}
       
       {isDevMode && (
-        <div className="dev-indicator">Dev Mode</div>
+        <div className="dev-indicator">
+          Dev Mode | 
+          Round: {currentRound}/{totalRounds} | 
+          Players Taken: {totalPlayersTaken}/{getTotalPlayers()} | 
+          Current Team: {currentTeam} | 
+          Current Player: {teams[currentTeam].currentPlayer}
+        </div>
       )}
     </div>
-  )
+  );
 }
 
-export default App
+export default App;
