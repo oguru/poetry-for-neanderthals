@@ -1,4 +1,6 @@
-export const gameData = [
+import customWords from './custom_words.json';
+
+const baseGameData = [
     {
         "1": "Quiz",
         "3": "Pop Quiz"
@@ -5599,4 +5601,7 @@ export const gameData = [
         "1": "Private",
         "3": "Private Detective"
     }
-]
+];
+
+// Combine the base game data with custom words
+export const gameData = [...baseGameData, ...customWords];

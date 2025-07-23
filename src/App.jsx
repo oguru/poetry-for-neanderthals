@@ -8,27 +8,152 @@ function App() {
   // Check for dev mode in URL
   const isDevMode = new URLSearchParams(window.location.search).get('dev') === 'true';
 
+  // Load saved team names from localStorage if available
+  const getSavedTeamNames = () => {
+    try {
+      const savedTeam1 = localStorage.getItem('team1Name') || 'Team 1';
+      const savedTeam2 = localStorage.getItem('team2Name') || 'Team 2';
+      const savedTeam1Players = parseInt(localStorage.getItem('team1Players')) || 2;
+      const savedTeam2Players = parseInt(localStorage.getItem('team2Players')) || 2;
+      return [
+        { name: savedTeam1, players: savedTeam1Players, playerInput: savedTeam1Players.toString() },
+        { name: savedTeam2, players: savedTeam2Players, playerInput: savedTeam2Players.toString() }
+      ];
+    } catch (e) {
+      console.error('Error loading saved team names:', e);
+      return [
+        { name: 'Team 1', players: 2, playerInput: '2' },
+        { name: 'Team 2', players: 2, playerInput: '2' }
+      ];
+    }
+  };
+
+  // Get saved player names from localStorage
+  const getSavedPlayerNames = () => {
+    try {
+      const savedPlayerNames = JSON.parse(localStorage.getItem('playerNames')) || {};
+      return savedPlayerNames;
+    } catch (e) {
+      console.error('Error loading saved player names:', e);
+      return {};
+    }
+  };
+
+  // Get saved timer duration
+  const getSavedTimerDuration = () => {
+    try {
+      const savedDuration = localStorage.getItem('timerDuration');
+      return savedDuration ? parseInt(savedDuration) : 60;
+    } catch (e) {
+      return 60;
+    }
+  };
+
   const [gameState, setGameState] = useState('setup') // setup, playing, roundEnd, gameEnd
   const [teams, setTeams] = useState([
-    { name: 'Team 1', score: 0, turns: 0 },
-    { name: 'Team 2', score: 0, turns: 0 }
+    { name: getSavedTeamNames()[0].name, score: 0, turns: 0, players: getSavedTeamNames()[0].players, playerInput: getSavedTeamNames()[0].playerInput, currentPlayer: 1 },
+    { name: getSavedTeamNames()[1].name, score: 0, turns: 0, players: getSavedTeamNames()[1].players, playerInput: getSavedTeamNames()[1].playerInput, currentPlayer: 1 }
   ])
+  const [playerNames, setPlayerNames] = useState(getSavedPlayerNames())
   const [currentTeam, setCurrentTeam] = useState(0)
   const [currentRound, setCurrentRound] = useState(1)
   const [totalRounds, setTotalRounds] = useState(5)
   const [timeLeft, setTimeLeft] = useState(60)
-  const [timerDuration, setTimerDuration] = useState(60) // Default 60 seconds
-  const [timerInputValue, setTimerInputValue] = useState('60') // String value for the input
+  const savedDuration = getSavedTimerDuration();
+  const [timerDuration, setTimerDuration] = useState(savedDuration) // Default from localStorage or 60 seconds
+  const [timerInputValue, setTimerInputValue] = useState(savedDuration.toString()) // String value for the input
   const [timerActive, setTimerActive] = useState(false)
   const [gameCards, setGameCards] = useState([...gameData])
   const [currentCard, setCurrentCard] = useState(null)
   const [totalCardsPlayed, setTotalCardsPlayed] = useState(0)
+  const [totalPlayersTaken, setTotalPlayersTaken] = useState(0) // Track how many players have taken their turn
 
   // Handle team name change
   const handleTeamNameChange = (index, newName) => {
     const updatedTeams = [...teams]
     updatedTeams[index] = { ...updatedTeams[index], name: newName }
     setTeams(updatedTeams)
+    
+    // Save to localStorage
+    localStorage.setItem(`team${index + 1}Name`, newName)
+  }
+
+  // Handle player name change
+  const handlePlayerNameChange = (teamIndex, playerIndex, newName) => {
+    const key = `team${teamIndex + 1}_player${playerIndex + 1}`;
+    const updatedPlayerNames = { ...playerNames, [key]: newName };
+    setPlayerNames(updatedPlayerNames);
+    
+    // Save to localStorage
+    localStorage.setItem('playerNames', JSON.stringify(updatedPlayerNames));
+  }
+
+  // Clear a single player name
+  const clearPlayerName = (teamIndex, playerIndex) => {
+    const key = `team${teamIndex + 1}_player${playerIndex + 1}`;
+    const updatedPlayerNames = { ...playerNames };
+    delete updatedPlayerNames[key];
+    setPlayerNames(updatedPlayerNames);
+    
+    // Save to localStorage
+    localStorage.setItem('playerNames', JSON.stringify(updatedPlayerNames));
+  }
+
+  // Clear all player names
+  const clearAllPlayerNames = () => {
+    setPlayerNames({});
+    localStorage.removeItem('playerNames');
+  }
+
+  // Get player name or default
+  const getPlayerName = (teamIndex, playerIndex) => {
+    const key = `team${teamIndex + 1}_player${playerIndex + 1}`;
+    return playerNames[key] || `Player ${playerIndex + 1}`;
+  }
+
+  // Handle team player count input change
+  const handleTeamPlayerCountChange = (index, inputValue) => {
+    // Store the raw input value
+    const updatedTeams = [...teams]
+    updatedTeams[index] = { 
+      ...updatedTeams[index], 
+      playerInput: inputValue 
+    }
+    
+    // Only update the actual player count if it's a valid number
+    if (inputValue.trim() !== '') {
+      const count = parseInt(inputValue)
+      if (!isNaN(count)) {
+        // Apply min/max constraints
+        const validCount = Math.max(1, Math.min(10, count))
+        updatedTeams[index].players = validCount
+        
+        // Save to localStorage
+        localStorage.setItem(`team${index + 1}Players`, validCount.toString())
+      }
+    }
+    
+    setTeams(updatedTeams)
+  }
+
+  // Validate player count on blur
+  const validatePlayerCount = (index) => {
+    const updatedTeams = [...teams]
+    const currentTeam = updatedTeams[index]
+    
+    // If input is empty or invalid, reset to 1
+    if (currentTeam.playerInput.trim() === '' || isNaN(parseInt(currentTeam.playerInput))) {
+      currentTeam.players = 1
+      currentTeam.playerInput = '1'
+    } else {
+      // Ensure the displayed value matches the actual value
+      const validCount = Math.max(1, Math.min(10, parseInt(currentTeam.playerInput)))
+      currentTeam.players = validCount
+      currentTeam.playerInput = validCount.toString()
+    }
+    
+    setTeams(updatedTeams)
+    localStorage.setItem(`team${index + 1}Players`, currentTeam.players.toString())
   }
 
   // Handle total rounds change
@@ -47,6 +172,8 @@ function App() {
       // Only apply limits when actually starting the game
       if (duration > 0) {
         setTimerDuration(duration)
+        // Save to localStorage
+        localStorage.setItem('timerDuration', duration.toString())
       }
     }
   }
@@ -56,19 +183,47 @@ function App() {
     setTimeLeft(0);
   }
 
+  // Calculate total number of players
+  const getTotalPlayers = () => {
+    return teams.reduce((sum, team) => sum + team.players, 0);
+  }
+
   // Start the game
   const startGame = () => {
+    // Validate player counts one last time
+    const finalTeams = teams.map(team => {
+      const validCount = Math.max(1, Math.min(10, team.players))
+      return {
+        ...team,
+        players: validCount,
+        playerInput: validCount.toString()
+      }
+    })
+    setTeams(finalTeams)
+    
     // Final validation of timer duration before starting
     let finalDuration = parseInt(timerInputValue) || 60
     
     // Apply min/max only when starting the game
     finalDuration = Math.min(Math.max(10, finalDuration), 300)
     setTimerDuration(finalDuration)
+    localStorage.setItem('timerDuration', finalDuration.toString())
     
     setGameState('playing')
     setCurrentTeam(0)
     setCurrentRound(1)
     setTotalCardsPlayed(0)
+    setTotalPlayersTaken(0)
+    
+    // Reset current player for each team
+    const resetTeams = finalTeams.map(team => ({
+      ...team,
+      currentPlayer: 1,
+      turns: 0,
+      score: 0
+    }));
+    setTeams(resetTeams);
+    
     // Shuffle the game cards at the start
     setGameCards([...gameData].sort(() => Math.random() - 0.5))
     startTurn()
@@ -112,17 +267,37 @@ function App() {
     drawCard()
   }
 
+  // Skip card without penalty
+  const skipCardWithoutPenalty = () => {
+    // Remove current card from deck without changing score
+    if (currentCard) {
+      setGameCards(gameCards.filter(card => 
+        card["1"] !== currentCard["1"] || card["3"] !== currentCard["3"]))
+      setTotalCardsPlayed(totalCardsPlayed + 1)
+    }
+    
+    // Draw a new card
+    drawCard()
+  }
+
   // End current turn
   const endTurn = () => {
     setTimerActive(false)
     
-    // Update turns for current team
+    // Update turns for current team and advance current player
     const updatedTeams = [...teams]
-    updatedTeams[currentTeam] = { 
-      ...updatedTeams[currentTeam], 
-      turns: updatedTeams[currentTeam].turns + 1 
+    const teamIndex = currentTeam;
+    
+    updatedTeams[teamIndex] = { 
+      ...updatedTeams[teamIndex], 
+      turns: updatedTeams[teamIndex].turns + 1,
+      currentPlayer: updatedTeams[teamIndex].currentPlayer < updatedTeams[teamIndex].players 
+        ? updatedTeams[teamIndex].currentPlayer + 1 
+        : 1
     }
+    
     setTeams(updatedTeams)
+    setTotalPlayersTaken(totalPlayersTaken + 1)
     
     setGameState('roundEnd')
   }
@@ -132,14 +307,17 @@ function App() {
     const nextTeam = (currentTeam + 1) % 2
     setCurrentTeam(nextTeam)
     
-    // Check if we've completed a round
-    if (nextTeam === 0) {
+    // Check if we've completed a round (all players have taken their turn)
+    const totalPlayers = getTotalPlayers();
+    
+    if (totalPlayersTaken + 1 >= totalPlayers) { // +1 because we're about to start the next turn
       const newRound = currentRound + 1
       if (newRound > totalRounds) {
         setGameState('gameEnd')
         return
       }
       setCurrentRound(newRound)
+      setTotalPlayersTaken(0)
     }
     
     setGameState('playing')
@@ -148,13 +326,18 @@ function App() {
 
   // Reset the game
   const resetGame = () => {
-    setTeams([
-      { name: 'Team 1', score: 0, turns: 0 },
-      { name: 'Team 2', score: 0, turns: 0 }
-    ])
+    // Keep team names and player counts, but reset scores and turns
+    setTeams(teams.map(team => ({
+      ...team,
+      score: 0,
+      turns: 0,
+      currentPlayer: 1
+    })))
+    
     setCurrentTeam(0)
     setCurrentRound(1)
     setTotalCardsPlayed(0)
+    setTotalPlayersTaken(0)
     setGameCards([...gameData].sort(() => Math.random() - 0.5))
     setGameState('setup')
   }
@@ -180,6 +363,46 @@ function App() {
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   }
 
+  // Get current player info text
+  const getCurrentPlayerText = () => {
+    const team = teams[currentTeam];
+    const playerIndex = team.currentPlayer - 1;
+    const playerName = getPlayerName(currentTeam, playerIndex);
+    return `${team.name} - ${playerName}`;
+  }
+
+  // Render player name inputs for a team
+  const renderPlayerNameInputs = (teamIndex) => {
+    const team = teams[teamIndex];
+    const inputs = [];
+    
+    for (let i = 0; i < team.players; i++) {
+      const playerKey = `team${teamIndex + 1}_player${i + 1}`;
+      inputs.push(
+        <div key={playerKey} className="player-name-input">
+          <label>Player {i + 1} Name:</label>
+          <div className="input-with-button">
+            <input
+              type="text"
+              value={playerNames[playerKey] || ''}
+              onChange={(e) => handlePlayerNameChange(teamIndex, i, e.target.value)}
+              placeholder={`Player ${i + 1}`}
+            />
+            <button 
+              className="clear-button"
+              onClick={() => clearPlayerName(teamIndex, i)}
+              title="Clear player name"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      );
+    }
+    
+    return inputs;
+  };
+
   return (
     <div className="app-container">
       {gameState === 'setup' && (
@@ -189,15 +412,44 @@ function App() {
           <div className="team-setup">
             <h2>Team Setup</h2>
             {teams.map((team, index) => (
-              <div key={index} className="team-input">
-                <label>Team {index + 1} Name:</label>
-                <input
-                  type="text"
-                  value={team.name}
-                  onChange={(e) => handleTeamNameChange(index, e.target.value)}
-                />
+              <div key={index} className="team-setup-group">
+                <div className="team-info-section">
+                  <div className="team-input">
+                    <label>Team {index + 1} Name:</label>
+                    <input
+                      type="text"
+                      value={team.name}
+                      onChange={(e) => handleTeamNameChange(index, e.target.value)}
+                    />
+                  </div>
+                  <div className="player-count-input">
+                    <label>Number of Players:</label>
+                    <input
+                      type="text"
+                      min="1"
+                      max="10"
+                      value={team.playerInput}
+                      onChange={(e) => handleTeamPlayerCountChange(index, e.target.value)}
+                      onBlur={() => validatePlayerCount(index)}
+                    />
+                  </div>
+                </div>
+                
+                <div className="player-names-section">
+                  <h3>Player Names</h3>
+                  {renderPlayerNameInputs(index)}
+                </div>
               </div>
             ))}
+            
+            <div className="clear-all-container">
+              <button 
+                className="clear-all-button"
+                onClick={clearAllPlayerNames}
+              >
+                Clear All Player Names
+              </button>
+            </div>
           </div>
           
           <div className="game-settings">
@@ -210,6 +462,7 @@ function App() {
                 value={totalRounds}
                 onChange={(e) => handleRoundsChange(e.target.value)}
               />
+
             </div>
             
             <div className="timer-input">
@@ -244,7 +497,7 @@ function App() {
         <div className="game-screen">
           <div className="game-header">
             <div className="team-info">
-              <h2>{teams[currentTeam].name}'s Turn</h2>
+              <h2>{getCurrentPlayerText()}'s Turn</h2>
               <div className="scores">
                 {teams.map((team, index) => (
                   <div key={index} className={`team-score ${index === currentTeam ? 'active' : ''}`}>
@@ -290,6 +543,10 @@ function App() {
               Skip / Penalty (-1 point)
             </button>
             
+            <button className="skip-button" onClick={skipCardWithoutPenalty}>
+              Skip (No Penalty)
+            </button>
+            
             {isDevMode && (
               <button className="dev-button end-turn-dev-button" onClick={forceEndTurn}>
                 End Turn (Dev)
@@ -303,16 +560,21 @@ function App() {
         <div className="round-end-screen">
           <h2>Time's Up!</h2>
           <div className="round-summary">
-            <h3>{teams[currentTeam].name}'s turn is over</h3>
+            <h3>
+              {teams[currentTeam].name} - {getPlayerName(currentTeam, teams[currentTeam].currentPlayer === 1 
+                ? teams[currentTeam].players - 1 
+                : teams[currentTeam].currentPlayer - 2)}'s turn is over
+            </h3>
             <p>Round {currentRound}</p>
             <p>Current Score: {teams[currentTeam].score}</p>
             <p>Cards remaining: {gameCards.length}</p>
+            <p>Next up: {teams[(currentTeam + 1) % 2].name} - {getPlayerName((currentTeam + 1) % 2, teams[(currentTeam + 1) % 2].currentPlayer - 1)}</p>
           </div>
           
           <button className="next-turn-button" onClick={nextTeamTurn}>
-            {currentTeam === 1 && currentRound === totalRounds 
+            {totalPlayersTaken + 1 >= getTotalPlayers() && currentRound === totalRounds 
               ? "See Final Results" 
-              : `Start ${teams[(currentTeam + 1) % 2].name}'s Turn`}
+              : `Start ${teams[(currentTeam + 1) % 2].name} - ${getPlayerName((currentTeam + 1) % 2, teams[(currentTeam + 1) % 2].currentPlayer - 1)}'s Turn`}
           </button>
         </div>
       )}
@@ -330,7 +592,7 @@ function App() {
                 (teams[0].score < teams[1].score && index === 1)) 
                   ? 'winner' : ''
               }`}>
-                {team.name}: {team.score} points
+                {team.name} ({team.players} players): {team.score} points
               </div>
             ))}
             <p className="game-stats">
